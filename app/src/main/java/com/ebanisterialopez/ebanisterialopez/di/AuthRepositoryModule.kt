@@ -1,6 +1,5 @@
 package com.ebanisterialopez.ebanisterialopez.di
 
-
 import com.ebanisterialopez.ebanisterialopez.data.repository.AuthRepositoryImpl
 import com.ebanisterialopez.ebanisterialopez.domain.repository.AuthRepository
 import dagger.Binds
