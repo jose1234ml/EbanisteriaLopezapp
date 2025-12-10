@@ -77,7 +77,7 @@ fun HomeScreen(
                 }
             }
             is HomeState.Success -> {
-                val products = state.products
+                val products = state.products.reversed()
                 val filteredProducts = if (searchQuery.isBlank()) products
                 else products.filter { it.name.contains(searchQuery, ignoreCase = true) }
 
@@ -302,7 +302,7 @@ fun WeeklyOffersSection(navController: NavController, modifier: Modifier = Modif
                     tint = colors.secondary,
                     modifier = Modifier
                         .size(40.dp)
-                        .clickable { navController.navigate("offers") } // también navegable desde el ícono
+                        .clickable { navController.navigate("offers") }
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -319,7 +319,6 @@ fun WeeklyOffersSection(navController: NavController, modifier: Modifier = Modif
         }
     }
 }
-
 
 @Composable
 fun ProductGridSection(products: List<Product>, navController: NavController, colors: ColorScheme, columns: Int) {
@@ -450,4 +449,3 @@ fun BottomNavigationBar(navController: NavController, colors: ColorScheme, curre
         }
     }
 }
-
