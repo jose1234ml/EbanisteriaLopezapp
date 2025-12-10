@@ -31,7 +31,6 @@ import coil.compose.AsyncImage
 import com.ebanisterialopez.ebanisterialopez.domain.model.Product
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
-import kotlin.math.ceil
 
 data class Category(val name: String, val icon: ImageVector)
 data class BottomNavItem(val title: String, val icon: ImageVector, val route: String)
@@ -50,6 +49,7 @@ private val navItems = listOf(
     BottomNavItem("Cotizar", Icons.Filled.Description, "quote_screen"),
     BottomNavItem("Setting", Icons.Filled.Settings, "settings")
 )
+
 @Composable
 fun HomeScreen(
     navController: NavController,
@@ -77,7 +77,7 @@ fun HomeScreen(
                 }
             }
             is HomeState.Success -> {
-                val products = state.products
+                val products = state.products.reversed()
                 val filteredProducts = if (searchQuery.isBlank()) products
                 else products.filter { it.name.contains(searchQuery, ignoreCase = true) }
 
@@ -89,14 +89,18 @@ fun HomeScreen(
                     item { SearchBarSection(value = searchQuery, onValueChange = { searchQuery = it }, colors = colors) }
 
                     if (searchQuery.isNotBlank()) {
-                        items(filteredProducts) { product ->
-                            ProductRow(product, navController, colors)
+                        item {
+                            ProductGridSection(
+                                products = filteredProducts,
+                                navController = navController,
+                                colors = colors,
+                                columns = 2
+                            )
                         }
-                        item { Spacer(modifier = Modifier.height(32.dp)) }
                     } else {
                         item { CategoriesSection(navController, colors) }
                         item { FeaturedBannerSection(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), colors) }
-                        item { WeeklyOffersSection(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), colors) }
+                        item { WeeklyOffersSection(navController, Modifier.padding(horizontal = 16.dp, vertical = 8.dp), colors) }
                         item {
                             Text(
                                 "Productos Destacados",
@@ -106,7 +110,7 @@ fun HomeScreen(
                                 modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp)
                             )
                         }
-                        item { ProductGridSection(products, navController, colors) }
+                        item { ProductGridSection(products, navController, colors, columns = 2) }
                         item { Spacer(modifier = Modifier.height(32.dp)) }
                     }
                 }
@@ -124,6 +128,7 @@ fun HomeScreen(
         }
     }
 }
+
 @Composable
 fun TopBarSection(navController: NavController, colors: ColorScheme) {
     Row(
@@ -169,6 +174,7 @@ fun TopBarSection(navController: NavController, colors: ColorScheme) {
         )
     }
 }
+
 @Composable
 fun SearchBarSection(value: String, onValueChange: (String) -> Unit, colors: ColorScheme) {
     OutlinedTextField(
@@ -196,6 +202,7 @@ fun SearchBarSection(value: String, onValueChange: (String) -> Unit, colors: Col
         )
     )
 }
+
 @Composable
 fun CategoriesSection(navController: NavController, colors: ColorScheme) {
     LazyRow(
@@ -205,6 +212,7 @@ fun CategoriesSection(navController: NavController, colors: ColorScheme) {
         items(categories) { category -> CategoryItem(category, navController, colors) }
     }
 }
+
 @Composable
 fun CategoryItem(category: Category, navController: NavController, colors: ColorScheme) {
     val encoded = URLEncoder.encode(category.name, StandardCharsets.UTF_8.toString())
@@ -262,8 +270,9 @@ fun FeaturedBannerSection(modifier: Modifier = Modifier, colors: ColorScheme) {
         }
     }
 }
+
 @Composable
-fun WeeklyOffersSection(modifier: Modifier = Modifier, colors: ColorScheme) {
+fun WeeklyOffersSection(navController: NavController, modifier: Modifier = Modifier, colors: ColorScheme) {
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
             "Ofertas Semanales",
@@ -272,46 +281,58 @@ fun WeeklyOffersSection(modifier: Modifier = Modifier, colors: ColorScheme) {
             color = colors.primary,
             modifier = Modifier.padding(bottom = 8.dp)
         )
+
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { navController.navigate("offers") },
             shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(containerColor = colors.secondary.copy(alpha = 0.1f)),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Row(
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier
+                    .padding(16.dp)
+                    .fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Filled.Discount, contentDescription = "Oferta", tint = colors.secondary, modifier = Modifier.size(40.dp))
+                Icon(
+                    Icons.Filled.Discount,
+                    contentDescription = "Oferta",
+                    tint = colors.secondary,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clickable { navController.navigate("offers") }
+                )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text("20% de Descuento", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = colors.secondary)
                     Text("En toda la línea de Baño, solo esta semana.", fontSize = 12.sp, color = colors.onSurface.copy(alpha = 0.7f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                Icon(Icons.Default.ArrowForwardIos, contentDescription = "Ir", tint = colors.secondary, modifier = Modifier.size(16.dp))
+                IconButton(
+                    onClick = { navController.navigate("offers") },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(Icons.Default.ArrowForwardIos, contentDescription = "Ir", tint = colors.secondary, modifier = Modifier.size(16.dp))
+                }
             }
         }
     }
 }
 
 @Composable
-fun ProductGridSection(products: List<Product>, navController: NavController, colors: ColorScheme) {
+fun ProductGridSection(products: List<Product>, navController: NavController, colors: ColorScheme, columns: Int) {
     if (products.isEmpty()) return
-
-    val columns = 5
-    val rowCount = ceil(products.size.toDouble() / columns).toInt()
-    val cardHeight = 160.dp
-    val verticalSpacing = 12.dp
-    val totalHeight = (rowCount * cardHeight.value + (rowCount - 1).coerceAtLeast(0) * verticalSpacing.value).dp + 16.dp // + 16dp para el padding vertical
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(columns),
         modifier = Modifier
-            .height(totalHeight)
-            .fillMaxWidth(),
+            .heightIn(max = 1000.dp)
+            .fillMaxWidth()
+            .wrapContentHeight(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(verticalSpacing)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         items(products) { product -> ProductCard(product, navController, colors) }
     }
@@ -322,29 +343,49 @@ fun ProductCard(product: Product, navController: NavController, colors: ColorSch
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { navController.navigate("product_detail/${product.productoId}") },
+            .clickable { navController.navigate("product_detail/${product.productoId}") }
+            .height(240.dp),
         shape = RoundedCornerShape(8.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
         Column {
             AsyncImage(
-                model = product.imageUrl,
+                model = product.imageUrl.takeIf { it.isNotEmpty() } ?: "https://placehold.co/200x200",
                 contentDescription = product.name,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(90.dp)
+                    .height(140.dp)
                     .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
             )
-            Column(modifier = Modifier.padding(6.dp)) {
-                Text(product.name, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, color = colors.onBackground)
-                Text(product.description, fontSize = 9.sp, color = colors.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(product.price, fontWeight = FontWeight.Bold, color = colors.error, fontSize = 10.sp)
+            Column(modifier = Modifier.padding(8.dp)) {
+                Text(
+                    product.name,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = colors.onBackground
+                )
+                Text(
+                    product.description,
+                    fontSize = 10.sp,
+                    color = colors.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    product.price,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = colors.error,
+                    fontSize = 14.sp
+                )
             }
         }
     }
 }
+
 @Composable
 fun ProductRow(product: Product, navController: NavController, colors: ColorScheme) {
     Card(
@@ -375,6 +416,7 @@ fun ProductRow(product: Product, navController: NavController, colors: ColorSche
         }
     }
 }
+
 @Composable
 fun BottomNavigationBar(navController: NavController, colors: ColorScheme, currentRoute: String) {
     NavigationBar(containerColor = colors.surface, contentColor = colors.primary) {
