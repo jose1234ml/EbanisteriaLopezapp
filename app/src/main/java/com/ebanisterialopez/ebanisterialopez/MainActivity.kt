@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
@@ -20,12 +21,14 @@ import com.ebanisterialopez.ebanisterialopez.presentation.Venta.CarritoViewModel
 import com.ebanisterialopez.ebanisterialopez.presentation.cotizacion.CotizacionScreen
 import com.ebanisterialopez.ebanisterialopez.presentation.producto.CategoryProductsScreen
 import com.ebanisterialopez.ebanisterialopez.presentation.home.HomeScreen
+import com.ebanisterialopez.ebanisterialopez.presentation.home.OffersScreen
 import com.ebanisterialopez.ebanisterialopez.presentation.ajuste.SettingsScreen
 import com.ebanisterialopez.ebanisterialopez.presentation.login.LoginScreen
 import com.ebanisterialopez.ebanisterialopez.presentation.login.RegisterScreen
 import com.ebanisterialopez.ebanisterialopez.presentation.producto.ProductDetailScreen
 import dagger.hilt.android.AndroidEntryPoint
 import com.example.compose.AppTheme
+
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,6 +51,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
 @Composable
 fun AppNavigation(
     darkThemeEnabled: Boolean,
@@ -119,6 +123,10 @@ fun AppNavigation(
             })
         ) {
             ProductDetailScreen(navController = navController)
+        }
+
+        composable("offers") {
+            OffersScreen(navController = navController, colors = MaterialTheme.colorScheme)
         }
 
         composable(Screens.CART) {
