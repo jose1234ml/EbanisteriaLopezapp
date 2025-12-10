@@ -25,6 +25,7 @@ import coil.compose.rememberAsyncImagePainter
 import com.ebanisterialopez.ebanisterialopez.presentation.Venta.CheckoutViewModel
 import com.ebanisterialopez.ebanisterialopez.domain.model.Venta
 import kotlinx.coroutines.launch
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CheckoutScreen(
@@ -43,21 +44,27 @@ fun CheckoutScreen(
     var telefono by remember { mutableStateOf("") }
     var direccion by remember { mutableStateOf("") }
     var comprobanteUri by remember { mutableStateOf<Uri?>(null) }
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
+
+    val launcher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri: Uri? ->
         comprobanteUri = uri
     }
+
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val isLoading by remember { derivedStateOf { viewModel.isLoading } }
     val errorMessage by remember { derivedStateOf { viewModel.errorMessage } }
+
     LaunchedEffect(errorMessage) {
         errorMessage?.let { msg ->
             snackbarHostState.showSnackbar(msg)
             viewModel.clearErrorMessage()
         }
     }
+
+    val showMessage: (String) -> Unit = { msg ->
+        scope.launch { snackbarHostState.showSnackbar(msg) }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -83,36 +90,27 @@ fun CheckoutScreen(
                 total = totalWithShipping,
                 colors = colors,
                 onPlaceOrder = {
-                    if (nombreCliente.isBlank() || telefono.isBlank() || direccion.isBlank()) {
-                        scope.launch {
-                            snackbarHostState.showSnackbar("Por favor completa los datos de dirección.")
-                        }
-                        return@CheckoutBottomBar
-                    }
-                    if (selectedPaymentMethod == "Transferencia Bancaria (Reservar)" && comprobanteUri == null) {
-                        scope.launch {
-                            snackbarHostState.showSnackbar("Por favor sube el comprobante de la transferencia.")
-                        }
-                        return@CheckoutBottomBar
-                    }
-
-                    val venta = Venta(
+                    val venta = validateInputs(
                         nombreCliente = nombreCliente,
                         telefono = telefono,
                         direccion = direccion,
-                        metodoPago = selectedPaymentMethod,
-                        comprobanteUri = comprobanteUri
+                        selectedPaymentMethod = selectedPaymentMethod,
+                        comprobanteUri = comprobanteUri,
+                        showMessage = showMessage
                     )
-                    viewModel.confirmarPedido(venta)
-                    onPlaceOrder()
+                    if (venta != null) {
+                        viewModel.confirmarPedido(venta)
+                        onPlaceOrder()
+                    }
                 },
                 enabled = !isLoading
             )
         }
     ) { paddingValues ->
-        Box(modifier = Modifier
-            .fillMaxSize()
-            .padding(paddingValues)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
         ) {
             Column(
                 modifier = Modifier
@@ -122,112 +120,38 @@ fun CheckoutScreen(
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                CheckoutSection(title = "📦 Dirección de Envío", colors = colors) {
-
-                    OutlinedTextField(
-                        value = nombreCliente,
-                        onValueChange = { nombreCliente = it },
-                        label = { Text("Nombre del Cliente") },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = colors.surface,
-                            unfocusedContainerColor = colors.surface,
-                        )
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    OutlinedTextField(
-                        value = telefono,
-                        onValueChange = { telefono = it },
-                        label = { Text("Teléfono") },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = colors.surface,
-                            unfocusedContainerColor = colors.surface,
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    OutlinedTextField(
-                        value = direccion,
-                        onValueChange = { direccion = it },
-                        label = { Text("Dirección") },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = colors.surface,
-                            unfocusedContainerColor = colors.surface,
-                        )
-                    )
-                }
+                AddressSection(
+                    nombreCliente = nombreCliente,
+                    onNombreChange = { nombreCliente = it },
+                    telefono = telefono,
+                    onTelefonoChange = { telefono = it },
+                    direccion = direccion,
+                    onDireccionChange = { direccion = it },
+                    colors = colors
+                )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                CheckoutSection(title = "💳 Método de Pago", colors = colors) {
-                    PaymentMethodOption(
-                        label = "Tarjeta de Crédito/Débito",
-                        isSelected = selectedPaymentMethod == "Tarjeta de Crédito",
-                        onClick = { selectedPaymentMethod = "Tarjeta de Crédito" },
-                        colors = colors
-                    )
-                    PaymentMethodOption(
-                        label = "Pago contra Entrega",
-                        isSelected = selectedPaymentMethod == "Pago contra Entrega",
-                        onClick = { selectedPaymentMethod = "Pago contra Entrega" },
-                        colors = colors
-                    )
-                    PaymentMethodOption(
-                        label = "Transferencia Bancaria (Reservar)",
-                        isSelected = selectedPaymentMethod == "Transferencia Bancaria (Reservar)",
-                        onClick = { selectedPaymentMethod = "Transferencia Bancaria (Reservar)" },
-                        colors = colors
-                    )
-                    if (selectedPaymentMethod == "Transferencia Bancaria (Reservar)") {
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Button(
-                            onClick = { launcher.launch("image/*") },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(containerColor = colors.primary),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text(
-                                text = if (comprobanteUri == null) "Subir Comprobante" else "Cambiar Comprobante",
-                                color = colors.onPrimary,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                        comprobanteUri?.let { uri ->
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Image(
-                                painter = rememberAsyncImagePainter(uri),
-                                contentDescription = "Comprobante Seleccionado",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(200.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                            )
-                        }
-                    }
-                }
+                PaymentMethodSection(
+                    selectedPaymentMethod = selectedPaymentMethod,
+                    onSelect = { selectedPaymentMethod = it },
+                    onUploadClick = { launcher.launch("image/*") },
+                    comprobanteUri = comprobanteUri,
+                    colors = colors
+                )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                CheckoutSection(title = "📝 Resumen del Pedido", colors = colors) {
-                    PaymentDetailRow(label = "Subtotal", value = "RD$ $subtotalValue")
-                    PaymentDetailRow(label = "Costo de Envío", value = shippingCost)
-                    Divider(color = colors.outlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
-                    PaymentDetailRow(
-                        label = "Total a Pagar",
-                        value = "RD$ $totalWithShipping",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    )
-                }
+                OrderSummarySection(
+                    subtotal = subtotalValue,
+                    shipping = shippingCost,
+                    total = totalWithShipping,
+                    colors = colors
+                )
 
                 Spacer(modifier = Modifier.height(24.dp))
             }
+
             if (isLoading) {
                 Box(
                     modifier = Modifier
@@ -241,6 +165,150 @@ fun CheckoutScreen(
         }
     }
 }
+
+private fun validateInputs(
+    nombreCliente: String,
+    telefono: String,
+    direccion: String,
+    selectedPaymentMethod: String,
+    comprobanteUri: Uri?,
+    showMessage: (String) -> Unit
+): Venta? {
+    if (nombreCliente.isBlank() || telefono.isBlank() || direccion.isBlank()) {
+        showMessage("Por favor completa los datos de dirección.")
+        return null
+    }
+    if (selectedPaymentMethod == "Transferencia Bancaria (Reservar)" && comprobanteUri == null) {
+        showMessage("Por favor sube el comprobante de la transferencia.")
+        return null
+    }
+    return Venta(
+        nombreCliente = nombreCliente,
+        telefono = telefono,
+        direccion = direccion,
+        metodoPago = selectedPaymentMethod,
+        comprobanteUri = comprobanteUri
+    )
+}
+
+@Composable
+fun AddressSection(
+    nombreCliente: String,
+    onNombreChange: (String) -> Unit,
+    telefono: String,
+    onTelefonoChange: (String) -> Unit,
+    direccion: String,
+    onDireccionChange: (String) -> Unit,
+    colors: ColorScheme
+) {
+    CheckoutSection(title = "📦 Dirección de Envío", colors = colors) {
+        OutlinedTextField(
+            value = nombreCliente,
+            onValueChange = onNombreChange,
+            label = { Text("Nombre del Cliente") },
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = colors.surface,
+                unfocusedContainerColor = colors.surface
+            )
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
+            value = telefono,
+            onValueChange = onTelefonoChange,
+            label = { Text("Teléfono") },
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = colors.surface,
+                unfocusedContainerColor = colors.surface
+            )
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
+            value = direccion,
+            onValueChange = onDireccionChange,
+            label = { Text("Dirección") },
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = colors.surface,
+                unfocusedContainerColor = colors.surface
+            )
+        )
+    }
+}
+
+@Composable
+fun PaymentMethodSection(
+    selectedPaymentMethod: String,
+    onSelect: (String) -> Unit,
+    onUploadClick: () -> Unit,
+    comprobanteUri: Uri?,
+    colors: ColorScheme
+) {
+    CheckoutSection(title = "💳 Método de Pago", colors = colors) {
+        PaymentMethodOption(
+            label = "Tarjeta de Crédito/Débito",
+            isSelected = selectedPaymentMethod == "Tarjeta de Crédito",
+            onClick = { onSelect("Tarjeta de Crédito") },
+            colors = colors
+        )
+        PaymentMethodOption(
+            label = "Pago contra Entrega",
+            isSelected = selectedPaymentMethod == "Pago contra Entrega",
+            onClick = { onSelect("Pago contra Entrega") },
+            colors = colors
+        )
+        PaymentMethodOption(
+            label = "Transferencia Bancaria (Reservar)",
+            isSelected = selectedPaymentMethod == "Transferencia Bancaria (Reservar)",
+            onClick = { onSelect("Transferencia Bancaria (Reservar)") },
+            colors = colors
+        )
+        if (selectedPaymentMethod == "Transferencia Bancaria (Reservar)") {
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                onClick = onUploadClick,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = colors.primary),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text(
+                    text = if (comprobanteUri == null) "Subir Comprobante" else "Cambiar Comprobante",
+                    color = colors.onPrimary,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            comprobanteUri?.let { uri ->
+                Spacer(modifier = Modifier.height(8.dp))
+                Image(
+                    painter = rememberAsyncImagePainter(uri),
+                    contentDescription = "Comprobante Seleccionado",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun OrderSummarySection(subtotal: String, shipping: String, total: String, colors: ColorScheme) {
+    CheckoutSection(title = "📝 Resumen del Pedido", colors = colors) {
+        PaymentDetailRow(label = "Subtotal", value = "RD$ $subtotal")
+        PaymentDetailRow(label = "Costo de Envío", value = shipping)
+        Divider(color = colors.outlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
+        PaymentDetailRow(
+            label = "Total a Pagar",
+            value = "RD$ $total",
+            fontWeight = FontWeight.Bold,
+            fontSize = 18.sp
+        )
+    }
+}
+
 @Composable
 fun CheckoutSection(title: String, colors: ColorScheme, content: @Composable ColumnScope.() -> Unit) {
     Column(
@@ -260,6 +328,7 @@ fun CheckoutSection(title: String, colors: ColorScheme, content: @Composable Col
         content()
     }
 }
+
 @Composable
 fun PaymentMethodOption(label: String, isSelected: Boolean, onClick: () -> Unit, colors: ColorScheme) {
     Row(
@@ -277,6 +346,7 @@ fun PaymentMethodOption(label: String, isSelected: Boolean, onClick: () -> Unit,
         Text(label, fontSize = 16.sp, color = colors.onSurface)
     }
 }
+
 @Composable
 fun CheckoutBottomBar(total: String, colors: ColorScheme, onPlaceOrder: () -> Unit, enabled: Boolean = true) {
     Row(
@@ -288,13 +358,10 @@ fun CheckoutBottomBar(total: String, colors: ColorScheme, onPlaceOrder: () -> Un
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Column(
-            horizontalAlignment = Alignment.Start
-        ) {
+        Column(horizontalAlignment = Alignment.Start) {
             Text("Total", fontSize = 14.sp, color = colors.onSurfaceVariant)
             Text("RD$ $total", fontSize = 22.sp, color = colors.onSurface, fontWeight = FontWeight.ExtraBold)
         }
-
         Button(
             onClick = onPlaceOrder,
             enabled = enabled,
@@ -306,6 +373,7 @@ fun CheckoutBottomBar(total: String, colors: ColorScheme, onPlaceOrder: () -> Un
         }
     }
 }
+
 @Composable
 fun PaymentDetailRow(
     label: String,
