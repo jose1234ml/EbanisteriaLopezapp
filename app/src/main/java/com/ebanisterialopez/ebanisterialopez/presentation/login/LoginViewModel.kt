@@ -16,6 +16,7 @@ class LoginViewModel @Inject constructor(
 ) : ViewModel() {
     private val _state = MutableStateFlow(LoginUiState())
     val state: StateFlow<LoginUiState> = _state
+    internal val stateForTest = _state
     fun onLoginClick(email: String, password: String) {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
