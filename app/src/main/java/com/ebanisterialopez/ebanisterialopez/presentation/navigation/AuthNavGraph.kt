@@ -1,0 +1,16 @@
+object Screens {
+    const val LOGIN = "login_screen"
+    const val REGISTER = "register_screen"
+    const val HOME = "home_screen"
+    const val CART = "cart"
+    const val CHECKOUT = "checkout"
+    const val CONTACT = "contact"
+    const val PROFILE = "profile"
+    const val SETTINGS = "settings"
+    const val QUOTE = "quote_screen"
+    const val PRODUCT_DETAIL_BASE = "product_detail"
+    const val CATEGORY_PRODUCTS_BASE = "category_products"
+    fun productDetail(productId: String) = "$PRODUCT_DETAIL_BASE/$productId"
+    fun categoryProducts(categoryName: String) = "$CATEGORY_PRODUCTS_BASE/$categoryName"
+    fun checkoutWithTotal(total: String) = "$CHECKOUT/$total"
+}
