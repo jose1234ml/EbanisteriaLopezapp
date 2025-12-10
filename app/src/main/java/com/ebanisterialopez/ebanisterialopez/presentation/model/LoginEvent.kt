@@ -1,6 +1,4 @@
-package com.ebanisterialopez.ebanisterialopez.presentation.login.model
-
-
+package com.ebanisterialopez.ebanisterialopez.presentation.model
 sealed interface LoginEvent {
     data class OnUserChange(val user: String) : LoginEvent
     data class OnPasswordChange(val password: String) : LoginEvent
