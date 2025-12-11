@@ -1,4 +1,3 @@
-// Top-level build file where you can add configuration options common to all sub-projects/modules.
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -46,7 +45,6 @@ android {
 }
 
 dependencies {
-
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -77,6 +75,8 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
     testImplementation("androidx.arch.core:core-testing:2.2.0")
     testImplementation("io.mockk:mockk:1.13.8")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.1.0")
+    testImplementation("androidx.room:room-testing:2.6.0")
 
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -85,4 +85,5 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.7.0")
+    testImplementation(kotlin("test"))
 }

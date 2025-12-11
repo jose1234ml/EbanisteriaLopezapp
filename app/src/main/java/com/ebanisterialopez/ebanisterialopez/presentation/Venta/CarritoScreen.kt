@@ -21,23 +21,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
-import com.ebanisterialopez.ebanisterialopez.data.local.CarritoItemEntity
+import com.ebanisterialopez.ebanisterialopez.domain.model.CarritoItem
 import com.ebanisterialopez.ebanisterialopez.presentation.Venta.CarritoViewModel
-fun List<CarritoItemEntity>.calculateOrderTotal(): Double {
-    return this.sumOf { item ->
-        val price = item.price.replace("[^\\d.]".toRegex(), "").toDoubleOrNull() ?: 0.0
-        price * item.quantity
-    }
-}
+import com.ebanisterialopez.ebanisterialopez.presentation.model.CarritoIntent
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CarritoScreen(
     viewModel: CarritoViewModel = hiltViewModel(),
     onProceedToPayment: (String) -> Unit
 ) {
-    val items by viewModel.items.collectAsState()
-    val orderTotalValue = items.calculateOrderTotal()
-    val orderTotalString = String.format("%.2f", orderTotalValue)
+    val state by viewModel.state.collectAsState()
     val colors = MaterialTheme.colorScheme
 
     Scaffold(
@@ -55,48 +49,49 @@ fun CarritoScreen(
             )
         },
         bottomBar = {
-            if (items.isNotEmpty()) {
-                BottomBar(orderTotal = orderTotalString, colors = colors) {
-                    onProceedToPayment(orderTotalString)
-                }
-            }
-        },
-        content = { paddingValues ->
-            if (items.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("El carrito está vacío", color = colors.onSurfaceVariant)
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
-                        .background(colors.background),
-                    contentPadding = PaddingValues(bottom = 72.dp)
-                ) {
-                    items(items) { item ->
-                        ShoppingBagItemBlock(item, viewModel, colors)
-                        Divider(color = colors.outlineVariant, thickness = 1.dp)
-                    }
-                    item { Spacer(modifier = Modifier.height(16.dp)) }
-                    item {
-                        OrderPaymentDetailsBlock(
-                            orderAmount = orderTotalString,
-                            orderTotal = orderTotalString,
-                            colors = colors
-                        )
-                    }
-                    item { Spacer(modifier = Modifier.height(16.dp)) }
-                }
+            if (state.items.isNotEmpty()) {
+                BottomBar(
+                    orderTotal = String.format("%.2f", state.total),
+                    colors = colors
+                ) { onProceedToPayment(String.format("%.2f", state.total)) }
             }
         }
-    )
+    ) { paddingValues ->
+        if (state.items.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("El carrito está vacío", color = colors.onSurfaceVariant)
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .background(colors.background),
+                contentPadding = PaddingValues(bottom = 72.dp)
+            ) {
+                items(state.items) { item ->
+                    ShoppingBagItemBlock(item, viewModel, colors)
+                    Divider(color = colors.outlineVariant, thickness = 1.dp)
+                }
+                item { Spacer(modifier = Modifier.height(16.dp)) }
+                item {
+                    OrderPaymentDetailsBlock(
+                        orderAmount = String.format("%.2f", state.total),
+                        orderTotal = String.format("%.2f", state.total),
+                        colors = colors
+                    )
+                }
+                item { Spacer(modifier = Modifier.height(16.dp)) }
+            }
+        }
+    }
 }
+
 @Composable
 fun BottomBar(orderTotal: String, colors: ColorScheme, onProceedToPayment: () -> Unit) {
     Row(
@@ -137,8 +132,9 @@ fun BottomBar(orderTotal: String, colors: ColorScheme, onProceedToPayment: () ->
         }
     }
 }
+
 @Composable
-fun ShoppingBagItemBlock(item: CarritoItemEntity, viewModel: CarritoViewModel, colors: ColorScheme) {
+fun ShoppingBagItemBlock(item: CarritoItem, viewModel: CarritoViewModel, colors: ColorScheme) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -162,10 +158,7 @@ fun ShoppingBagItemBlock(item: CarritoItemEntity, viewModel: CarritoViewModel, c
             Spacer(modifier = Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Button(
-                    onClick = {
-                        val newQuantity = item.quantity + 1
-                        viewModel.updateItem(item.copy(quantity = newQuantity))
-                    },
+                    onClick = { viewModel.onIntent(CarritoIntent.UpdateItem(item.copy(quantity = item.quantity + 1))) },
                     modifier = Modifier.height(32.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = colors.primary),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
@@ -176,25 +169,23 @@ fun ShoppingBagItemBlock(item: CarritoItemEntity, viewModel: CarritoViewModel, c
                 Spacer(modifier = Modifier.width(8.dp))
                 Button(
                     onClick = {
-                        if (item.quantity > 1) {
-                            val newQuantity = item.quantity - 1
-                            viewModel.updateItem(item.copy(quantity = newQuantity))
-                        } else {
-                            viewModel.removeItem(item)
-                        }
+                        if (item.quantity > 1) viewModel.onIntent(CarritoIntent.UpdateItem(item.copy(quantity = item.quantity - 1)))
+                        else viewModel.onIntent(CarritoIntent.RemoveItem(item))
                     },
                     modifier = Modifier.height(32.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = colors.error),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                 ) { Text("-", color = colors.onError) }
+
                 Spacer(modifier = Modifier.width(8.dp))
-                IconButton(onClick = { viewModel.removeItem(item) }) {
+                IconButton(onClick = { viewModel.onIntent(CarritoIntent.RemoveItem(item)) }) {
                     Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = colors.error)
                 }
             }
         }
     }
 }
+
 @Composable
 fun OrderPaymentDetailsBlock(orderAmount: String, orderTotal: String, colors: ColorScheme) {
     Column(
@@ -223,6 +214,7 @@ fun OrderPaymentDetailsBlock(orderAmount: String, orderTotal: String, colors: Co
         Spacer(modifier = Modifier.height(4.dp))
     }
 }
+
 @Composable
 fun PaymentDetailRow(
     label: String,

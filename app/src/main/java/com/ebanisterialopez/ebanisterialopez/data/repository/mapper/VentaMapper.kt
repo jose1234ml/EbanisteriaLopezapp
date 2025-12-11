@@ -9,9 +9,6 @@ import com.ebanisterialopez.ebanisterialopez.domain.model.Venta
 import java.text.NumberFormat
 import java.util.Locale
 
-/**
- * Convierte un CarritoItemEntity (Room) -> CrearVentaItemDto
- */
 fun CarritoItemEntity.toCrearVentaItemDto(): CrearVentaItemDto {
     val precioDouble = parsePriceStringToDouble(this.price)
     return CrearVentaItemDto(
@@ -21,9 +18,6 @@ fun CarritoItemEntity.toCrearVentaItemDto(): CrearVentaItemDto {
     )
 }
 
-/**
- * Mapea Venta (dominio) + lista de items (Room) -> CrearVentaDto (para enviar a /api/Ventas)
- */
 fun Venta.toCrearVentaDto(itemsCarrito: List<CarritoItemEntity>): CrearVentaDto {
     val base64Voucher = comprobanteUri?.let { uri ->
         val inputStream = MyApplication.appContext.contentResolver.openInputStream(uri)
@@ -44,18 +38,9 @@ fun Venta.toCrearVentaDto(itemsCarrito: List<CarritoItemEntity>): CrearVentaDto 
     )
 }
 
-/**
- * 🔥 FUNCIÓN QUE TE FALTABA 🔥
- * Hace exactamente lo que busca tu UseCase:
- * venta.toDtoFromCarrito(carritoItems)
- */
 fun Venta.toDtoFromCarrito(itemsCarrito: List<CarritoItemEntity>): CrearVentaDto {
     return this.toCrearVentaDto(itemsCarrito)
 }
-
-/**
- * Parseo defensivo String -> Double
- */
 private fun parsePriceStringToDouble(priceStr: String?): Double {
     if (priceStr.isNullOrBlank()) return 0.0
     val cleaned = priceStr

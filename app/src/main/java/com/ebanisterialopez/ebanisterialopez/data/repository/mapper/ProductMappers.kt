@@ -4,10 +4,6 @@ import com.ebanisterialopez.ebanisterialopez.domain.model.Product
 import java.text.NumberFormat
 import java.util.Currency
 import java.util.Locale
-
-// ------------------------------------------------------------
-// 🔵 MAPPER PRINCIPAL: DTO -> Product UI MODEL
-// ------------------------------------------------------------
 fun ProductApiData.toProductUiModel(): Product {
     val locale = Locale("es", "DO")
     val formatter = NumberFormat.getCurrencyInstance(locale)
@@ -38,9 +34,4 @@ fun ProductApiData.toProductUiModel(): Product {
         images = imagesList
     )
 }
-
-// ------------------------------------------------------------
-// 🔵 ALIAS COMPATIBLE CON TU VIEWMODEL
-// Llama internamente a toProductUiModel()
-// ------------------------------------------------------------
 fun ProductApiData.toDomain(): Product = this.toProductUiModel()

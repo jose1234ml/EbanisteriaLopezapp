@@ -1,6 +1,9 @@
+// RepositoryModule.kt
 package com.ebanisterialopez.ebanisterialopez.di
 
+import com.ebanisterialopez.ebanisterialopez.data.repository.CarritoRepositoryImpl
 import com.ebanisterialopez.ebanisterialopez.data.repository.ProductRepositoryImpl
+import com.ebanisterialopez.ebanisterialopez.domain.repository.CarritoRepository
 import com.ebanisterialopez.ebanisterialopez.domain.repository.ProductRepository
 import dagger.Binds
 import dagger.Module
@@ -14,7 +17,13 @@ abstract class RepositoryModule {
 
     @Binds
     @Singleton
+    abstract fun bindCarritoRepository(
+        impl: CarritoRepositoryImpl
+    ): CarritoRepository
+
+    @Binds
+    @Singleton
     abstract fun bindProductRepository(
-        productRepositoryImpl: ProductRepositoryImpl
+        impl: ProductRepositoryImpl
     ): ProductRepository
 }

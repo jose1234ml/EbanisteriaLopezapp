@@ -1,7 +1,10 @@
-package com.ebanisterialopez.ebanisterialopez.data.remote.dto
+package com.ebanisterialopez.ebanisterialopez.data.remote
 
+import com.ebanisterialopez.ebanisterialopez.data.remote.dto.ProductApiData
+import com.ebanisterialopez.ebanisterialopez.data.remote.dto.ProductCategory
 import retrofit2.http.GET
 import retrofit2.http.Path
+
 interface ProductApi {
     @GET("api/productos")
     suspend fun getFeaturedProducts(): List<ProductApiData>

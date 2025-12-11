@@ -1,7 +1,5 @@
 package com.ebanisterialopez.ebanisterialopez.presentation
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -9,31 +7,28 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.ebanisterialopez.ebanisterialopez.presentation.home.ContactViewModel
+import com.ebanisterialopez.ebanisterialopez.presentation.model.ContactIntent
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ContactScreen(
-    nombreNegocio: String = "Ebanisteria Lopez",
-    telefono: String = "829-923-6254",
-    sitioWeb: String = "https://www.ebanisterialopez.com/",
-    instagramUrl: String = "https://www.instagram.com/ebanisterialopez1/",
+    contactViewModel: ContactViewModel = viewModel()
 ) {
-    val ctx = LocalContext.current
+    val uiState = contactViewModel.uiState.collectAsState().value
     val colors = MaterialTheme.colorScheme
-    val ubicacionUrl = "https://maps.google.com/?q=ebanisterialopez"
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Contactos", color = colors.onSurface) }
-            )
-        },
+        topBar = { TopAppBar(title = { Text("Contactos", color = colors.onSurface) }) },
         containerColor = colors.background
     ) { padding ->
         Column(
@@ -42,7 +37,7 @@ fun ContactScreen(
                 .padding(padding)
                 .padding(16.dp)
         ) {
-
+            // Card de Información del Negocio
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
@@ -50,25 +45,18 @@ fun ContactScreen(
                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
+                    Text(uiState.nombreNegocio, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = colors.primary)
+                    Spacer(Modifier.height(8.dp))
                     Text(
-                        text = nombreNegocio,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = colors.primary
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = "Somos un taller y fábrica dedicada a la ebanistería: puertas, cocinas, mobiliario a medida y proyectos a gran escala. Con más de 48 años de experiencia ofrecemos soluciones desde el diseño hasta la instalación.",
-                        fontSize = 14.sp,
-                        color = colors.onSurfaceVariant,
-                        textAlign = TextAlign.Start
+                        "Somos un taller y fábrica dedicada a la ebanistería: puertas, cocinas, mobiliario a medida y proyectos a gran escala. Con más de 48 años de experiencia ofrecemos soluciones desde el diseño hasta la instalación.",
+                        fontSize = 14.sp, color = colors.onSurfaceVariant, textAlign = TextAlign.Start
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(Modifier.height(16.dp))
+
+            // Card de Contactos
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(10.dp),
@@ -77,72 +65,48 @@ fun ContactScreen(
             ) {
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
 
-                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Teléfono", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = colors.onSurface)
-                            Text(telefono, fontSize = 14.sp, color = colors.onSurfaceVariant)
+                            Text(uiState.telefono, fontSize = 14.sp, color = colors.onSurfaceVariant)
                         }
-                        TextButton(onClick = {
-                            try {
-                                val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$telefono"))
-                                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                ctx.startActivity(intent)
-                            } catch (_: Exception) {}
-                        }) {
+                        TextButton(onClick = { contactViewModel.onIntent(ContactIntent.Llamar) }) {
                             Text("Llamar", color = colors.primary)
                         }
                     }
 
-                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Página web", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = colors.onSurface)
-                            Text(sitioWeb, fontSize = 14.sp, color = colors.onSurfaceVariant)
+                            Text(uiState.sitioWeb, fontSize = 14.sp, color = colors.onSurfaceVariant)
                         }
-                        TextButton(onClick = {
-                            try {
-                                val i = Intent(Intent.ACTION_VIEW, Uri.parse(sitioWeb))
-                                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                ctx.startActivity(i)
-                            } catch (_: Exception) {}
-                        }) {
+                        TextButton(onClick = { contactViewModel.onIntent(ContactIntent.AbrirWeb) }) {
                             Text("Abrir", color = colors.primary)
                         }
                     }
 
-                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Instagram", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = colors.onSurface)
-                            Text(instagramUrl, fontSize = 14.sp, color = colors.onSurfaceVariant)
+                            Text(uiState.instagramUrl, fontSize = 14.sp, color = colors.onSurfaceVariant)
                         }
-                        TextButton(onClick = {
-                            try {
-                                val i = Intent(Intent.ACTION_VIEW, Uri.parse(instagramUrl))
-                                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                ctx.startActivity(i)
-                            } catch (_: Exception) {}
-                        }) {
+                        TextButton(onClick = { contactViewModel.onIntent(ContactIntent.AbrirInstagram) }) {
                             Text("Abrir", color = colors.primary)
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(Modifier.height(18.dp))
 
             Text("Nuestra Ubicación", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = colors.primary)
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(Modifier.height(8.dp))
 
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(100.dp)
-                    .clickable {
-                        try {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(ubicacionUrl))
-                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            ctx.startActivity(intent)
-                        } catch (_: Exception) {}
-                    },
+                    .clickable { contactViewModel.onIntent(ContactIntent.VerUbicacion) },
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = colors.primary.copy(alpha = 0.1f)),
                 elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
@@ -152,13 +116,8 @@ fun ContactScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Icon(
-                        Icons.Filled.LocationOn,
-                        contentDescription = "Ubicación",
-                        tint = colors.primary,
-                        modifier = Modifier.size(40.dp)
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
+                    Icon(Icons.Filled.LocationOn, contentDescription = "Ubicación", tint = colors.primary, modifier = Modifier.size(40.dp))
+                    Spacer(Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Ver en el Mapa", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = colors.primary)
                         Text("Haz clic para obtener direcciones.", fontSize = 12.sp, color = colors.onSurfaceVariant)
@@ -166,14 +125,19 @@ fun ContactScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(Modifier.height(20.dp))
 
-            Text(
-                text = "© ${java.time.Year.now().value} Ebanisteria Lopez",
+            Text("© ${java.time.Year.now().value} ${uiState.nombreNegocio}",
                 fontSize = 12.sp,
                 color = colors.onSurfaceVariant,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
         }
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun ContactScreenPreview() {
+    ContactScreen()
 }
