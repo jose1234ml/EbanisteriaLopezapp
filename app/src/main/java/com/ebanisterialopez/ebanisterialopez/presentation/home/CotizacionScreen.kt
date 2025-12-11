@@ -1,9 +1,5 @@
 package com.ebanisterialopez.ebanisterialopez.presentation.cotizacion
 
-import android.content.Context
-import android.content.Intent
-import android.net.Uri
-import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -17,21 +13,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-const val WHATSAPP_NUMBER = "+18299236254"
+import com.ebanisterialopez.ebanisterialopez.presentation.home.CotizacionViewModel
+import com.ebanisterialopez.ebanisterialopez.presentation.model.CotizacionIntent
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CotizacionScreen(navController: NavController) {
+fun CotizacionScreen(
+    navController: NavController,
+    viewModel: CotizacionViewModel = hiltViewModel()
+) {
+    val state = viewModel.uiState.collectAsState().value
     val context = LocalContext.current
     val colors = MaterialTheme.colorScheme
-
-    var nombre by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var telefono by remember { mutableStateOf("") }
-    var productoInteres by remember { mutableStateOf("") }
-    var detalles by remember { mutableStateOf("") }
-
-    val isFormValid = nombre.isNotBlank() && telefono.isNotBlank() && productoInteres.isNotBlank() && detalles.isNotBlank()
 
     Scaffold(
         topBar = {
@@ -55,127 +50,47 @@ fun CotizacionScreen(navController: NavController) {
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                "Dinos qué necesitas y te enviaremos una cotización detallada.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = colors.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-
             OutlinedTextField(
-                value = nombre,
-                onValueChange = { nombre = it },
+                value = state.nombre,
+                onValueChange = { viewModel.onIntent(CotizacionIntent.UpdateNombre(it)) },
                 label = { Text("Tu Nombre Completo *") },
-                modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
-                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colors.primary)
+                modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)
             )
             OutlinedTextField(
-                value = telefono,
-                onValueChange = { telefono = it },
+                value = state.telefono,
+                onValueChange = { viewModel.onIntent(CotizacionIntent.UpdateTelefono(it)) },
                 label = { Text("Teléfono de Contacto *") },
-                modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
-                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colors.primary)
+                modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)
             )
             OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
+                value = state.email,
+                onValueChange = { viewModel.onIntent(CotizacionIntent.UpdateEmail(it)) },
                 label = { Text("Correo Electrónico (Opcional)") },
-                modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
-                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colors.primary)
+                modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)
             )
             OutlinedTextField(
-                value = productoInteres,
-                onValueChange = { productoInteres = it },
+                value = state.producto,
+                onValueChange = { viewModel.onIntent(CotizacionIntent.UpdateProducto(it)) },
                 label = { Text("Producto o Servicio de Interés *") },
-                modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
-                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colors.primary)
+                modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)
             )
             OutlinedTextField(
-                value = detalles,
-                onValueChange = { detalles = it },
+                value = state.detalles,
+                onValueChange = { viewModel.onIntent(CotizacionIntent.UpdateDetalles(it)) },
                 label = { Text("Detalles del Proyecto / Medidas *") },
                 modifier = Modifier.fillMaxWidth().height(150.dp).padding(bottom = 20.dp),
-                minLines = 5,
-                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = colors.primary)
+                minLines = 5
             )
 
             Button(
-                onClick = {
-                    sendWhatsAppQuote(
-                        context = context,
-                        nombre = nombre,
-                        telefono = telefono,
-                        email = email,
-                        producto = productoInteres,
-                        detalles = detalles
-                    )
-                },
-                enabled = isFormValid,
-                modifier = Modifier
-                    .fillMaxWidth(0.8f)
-                    .height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = colors.primary)
+                onClick = { viewModel.onIntent(CotizacionIntent.SendQuote, context) },
+                enabled = state.isFormValid && !state.isSending,
+                modifier = Modifier.fillMaxWidth(0.8f).height(50.dp)
             ) {
                 Icon(Icons.Filled.Send, contentDescription = "Enviar")
                 Spacer(Modifier.width(8.dp))
-                Text("Enviar Solicitud por WhatsApp", fontWeight = FontWeight.Bold)
+                Text(if (state.isSending) "Enviando..." else "Enviar por WhatsApp")
             }
         }
-    }
-}
-fun sendWhatsAppQuote(
-    context: Context,
-    nombre: String,
-    telefono: String,
-    email: String,
-    producto: String,
-    detalles: String
-) {
-    val message = """
-        *SOLICITUD DE COTIZACIÓN*
-        
-        *Cliente:* $nombre
-        *Teléfono:* $telefono
-        *Email:* ${if (email.isBlank()) "No Proporcionado" else email}
-        
-        *Producto/Servicio:* $producto
-        
-        *Detalles/Especificaciones:*
-        $detalles
-        
-        ---
-        _Enviado desde la App Móvil_
-    """.trimIndent()
-
-    try {
-        val baseUri = Uri.parse("https://wa.me/$WHATSAPP_NUMBER?text=" + Uri.encode(message))
-        val businessIntent = Intent(Intent.ACTION_VIEW)
-        businessIntent.data = baseUri
-        businessIntent.setPackage("com.whatsapp.w4b")
-
-        if (businessIntent.resolveActivity(context.packageManager) != null) {
-            context.startActivity(businessIntent)
-            return
-        }
-
-        val standardIntent = Intent(Intent.ACTION_VIEW)
-        standardIntent.data = baseUri
-        standardIntent.setPackage("com.whatsapp")
-        if (standardIntent.resolveActivity(context.packageManager) != null) {
-            context.startActivity(standardIntent)
-            return
-        }
-
-        val browserIntent = Intent(Intent.ACTION_VIEW)
-        browserIntent.data = baseUri
-
-        if (browserIntent.resolveActivity(context.packageManager) != null) {
-            context.startActivity(browserIntent)
-        } else {
-            Toast.makeText(context, "No se encontró WhatsApp ni una aplicación para manejar el enlace.", Toast.LENGTH_LONG).show()
-        }
-
-    } catch (e: Exception) {
-        Toast.makeText(context, "Error fatal al intentar abrir el enlace: ${e.message}", Toast.LENGTH_LONG).show()
     }
 }

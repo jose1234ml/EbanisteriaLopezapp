@@ -18,13 +18,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.rememberAsyncImagePainter
 import com.ebanisterialopez.ebanisterialopez.presentation.Venta.CheckoutViewModel
-import com.ebanisterialopez.ebanisterialopez.domain.model.Venta
-import kotlinx.coroutines.launch
+import com.ebanisterialopez.ebanisterialopez.presentation.model.CheckoutIntent
+import com.ebanisterialopez.ebanisterialopez.presentation.model.CheckoutState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,83 +36,41 @@ fun CheckoutScreen(
     viewModel: CheckoutViewModel = hiltViewModel()
 ) {
     val colors = MaterialTheme.colorScheme
-    val subtotalValue = orderTotal
-    val shippingCost = "Gratis"
-    val totalWithShipping = orderTotal
-
-    var selectedPaymentMethod by remember { mutableStateOf("Tarjeta de Crédito") }
-    var nombreCliente by remember { mutableStateOf("") }
-    var telefono by remember { mutableStateOf("") }
-    var direccion by remember { mutableStateOf("") }
-    var comprobanteUri by remember { mutableStateOf<Uri?>(null) }
-
-    val launcher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri: Uri? ->
-        comprobanteUri = uri
+    val state by viewModel.state
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let { viewModel.onIntent(CheckoutIntent.UploadComprobante(it)) }
     }
-
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    val isLoading by remember { derivedStateOf { viewModel.isLoading } }
-    val errorMessage by remember { derivedStateOf { viewModel.errorMessage } }
 
-    LaunchedEffect(errorMessage) {
-        errorMessage?.let { msg ->
+    LaunchedEffect(state.errorMessage) {
+        state.errorMessage?.let { msg ->
             snackbarHostState.showSnackbar(msg)
-            viewModel.clearErrorMessage()
+            viewModel.onIntent(CheckoutIntent.ClearErrorMessage)
         }
-    }
-
-    val showMessage: (String) -> Unit = { msg ->
-        scope.launch { snackbarHostState.showSnackbar(msg) }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        "Proceder a Pagar",
-                        color = colors.onSurface,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = colors.onSurface)
-                    }
-                },
+                title = { Text("Proceder a Pagar", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = colors.onSurface) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Volver", tint = colors.onSurface) } },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = colors.surface)
             )
         },
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             CheckoutBottomBar(
-                total = totalWithShipping,
+                total = orderTotal,
                 colors = colors,
-                onPlaceOrder = {
-                    val venta = validateInputs(
-                        nombreCliente = nombreCliente,
-                        telefono = telefono,
-                        direccion = direccion,
-                        selectedPaymentMethod = selectedPaymentMethod,
-                        comprobanteUri = comprobanteUri,
-                        showMessage = showMessage
-                    )
-                    if (venta != null) {
-                        viewModel.confirmarPedido(venta)
-                        onPlaceOrder()
-                    }
-                },
-                enabled = !isLoading
-            )
+                enabled = !state.isLoading
+            ) {
+                viewModel.onIntent(CheckoutIntent.ConfirmarPedido)
+                onPlaceOrder()
+            }
         }
     ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -120,43 +79,17 @@ fun CheckoutScreen(
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                AddressSection(
-                    nombreCliente = nombreCliente,
-                    onNombreChange = { nombreCliente = it },
-                    telefono = telefono,
-                    onTelefonoChange = { telefono = it },
-                    direccion = direccion,
-                    onDireccionChange = { direccion = it },
-                    colors = colors
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                PaymentMethodSection(
-                    selectedPaymentMethod = selectedPaymentMethod,
-                    onSelect = { selectedPaymentMethod = it },
-                    onUploadClick = { launcher.launch("image/*") },
-                    comprobanteUri = comprobanteUri,
-                    colors = colors
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                OrderSummarySection(
-                    subtotal = subtotalValue,
-                    shipping = shippingCost,
-                    total = totalWithShipping,
-                    colors = colors
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
+                AddressSection(state = state, viewModel = viewModel, colors = colors)
+                Spacer(Modifier.height(16.dp))
+                PaymentMethodSection(state = state, viewModel = viewModel, onUploadClick = { launcher.launch("image/*") }, colors = colors)
+                Spacer(Modifier.height(16.dp))
+                OrderSummarySection(subtotal = orderTotal, shipping = "Gratis", total = orderTotal, colors = colors)
+                Spacer(Modifier.height(24.dp))
             }
 
-            if (isLoading) {
+            if (state.isLoading) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(colors.scrim.copy(alpha = 0.5f)),
+                    modifier = Modifier.fillMaxSize().background(colors.scrim.copy(alpha = 0.5f)),
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator(color = colors.primary)
@@ -166,128 +99,73 @@ fun CheckoutScreen(
     }
 }
 
-private fun validateInputs(
-    nombreCliente: String,
-    telefono: String,
-    direccion: String,
-    selectedPaymentMethod: String,
-    comprobanteUri: Uri?,
-    showMessage: (String) -> Unit
-): Venta? {
-    if (nombreCliente.isBlank() || telefono.isBlank() || direccion.isBlank()) {
-        showMessage("Por favor completa los datos de dirección.")
-        return null
-    }
-    if (selectedPaymentMethod == "Transferencia Bancaria (Reservar)" && comprobanteUri == null) {
-        showMessage("Por favor sube el comprobante de la transferencia.")
-        return null
-    }
-    return Venta(
-        nombreCliente = nombreCliente,
-        telefono = telefono,
-        direccion = direccion,
-        metodoPago = selectedPaymentMethod,
-        comprobanteUri = comprobanteUri
-    )
-}
-
 @Composable
-fun AddressSection(
-    nombreCliente: String,
-    onNombreChange: (String) -> Unit,
-    telefono: String,
-    onTelefonoChange: (String) -> Unit,
-    direccion: String,
-    onDireccionChange: (String) -> Unit,
-    colors: ColorScheme
-) {
+fun AddressSection(state: CheckoutState, viewModel: CheckoutViewModel, colors: ColorScheme) {
     CheckoutSection(title = "📦 Dirección de Envío", colors = colors) {
         OutlinedTextField(
-            value = nombreCliente,
-            onValueChange = onNombreChange,
+            value = state.nombreCliente,
+            onValueChange = { viewModel.onIntent(CheckoutIntent.UpdateClienteInfo(it, state.telefono, state.direccion)) },
             label = { Text("Nombre del Cliente") },
             modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = colors.surface,
-                unfocusedContainerColor = colors.surface
-            )
+            colors = OutlinedTextFieldDefaults.colors(focusedContainerColor = colors.surface, unfocusedContainerColor = colors.surface)
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(Modifier.height(8.dp))
         OutlinedTextField(
-            value = telefono,
-            onValueChange = onTelefonoChange,
+            value = state.telefono,
+            onValueChange = { viewModel.onIntent(CheckoutIntent.UpdateClienteInfo(state.nombreCliente, it, state.direccion)) },
             label = { Text("Teléfono") },
             modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = colors.surface,
-                unfocusedContainerColor = colors.surface
-            )
+            colors = OutlinedTextFieldDefaults.colors(focusedContainerColor = colors.surface, unfocusedContainerColor = colors.surface)
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(Modifier.height(8.dp))
         OutlinedTextField(
-            value = direccion,
-            onValueChange = onDireccionChange,
+            value = state.direccion,
+            onValueChange = { viewModel.onIntent(CheckoutIntent.UpdateClienteInfo(state.nombreCliente, state.telefono, it)) },
             label = { Text("Dirección") },
             modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = colors.surface,
-                unfocusedContainerColor = colors.surface
-            )
+            colors = OutlinedTextFieldDefaults.colors(focusedContainerColor = colors.surface, unfocusedContainerColor = colors.surface)
         )
     }
 }
 
 @Composable
-fun PaymentMethodSection(
-    selectedPaymentMethod: String,
-    onSelect: (String) -> Unit,
-    onUploadClick: () -> Unit,
-    comprobanteUri: Uri?,
-    colors: ColorScheme
-) {
+fun PaymentMethodSection(state: CheckoutState, viewModel: CheckoutViewModel, onUploadClick: () -> Unit, colors: ColorScheme) {
     CheckoutSection(title = "💳 Método de Pago", colors = colors) {
         PaymentMethodOption(
             label = "Tarjeta de Crédito/Débito",
-            isSelected = selectedPaymentMethod == "Tarjeta de Crédito",
-            onClick = { onSelect("Tarjeta de Crédito") },
+            isSelected = state.metodoPago == "Tarjeta de Crédito",
+            onClick = { viewModel.onIntent(CheckoutIntent.UpdatePaymentMethod("Tarjeta de Crédito")) },
             colors = colors
         )
         PaymentMethodOption(
             label = "Pago contra Entrega",
-            isSelected = selectedPaymentMethod == "Pago contra Entrega",
-            onClick = { onSelect("Pago contra Entrega") },
+            isSelected = state.metodoPago == "Pago contra Entrega",
+            onClick = { viewModel.onIntent(CheckoutIntent.UpdatePaymentMethod("Pago contra Entrega")) },
             colors = colors
         )
         PaymentMethodOption(
             label = "Transferencia Bancaria (Reservar)",
-            isSelected = selectedPaymentMethod == "Transferencia Bancaria (Reservar)",
-            onClick = { onSelect("Transferencia Bancaria (Reservar)") },
+            isSelected = state.metodoPago == "Transferencia Bancaria (Reservar)",
+            onClick = { viewModel.onIntent(CheckoutIntent.UpdatePaymentMethod("Transferencia Bancaria (Reservar)")) },
             colors = colors
         )
-        if (selectedPaymentMethod == "Transferencia Bancaria (Reservar)") {
-            Spacer(modifier = Modifier.height(8.dp))
+        if (state.metodoPago == "Transferencia Bancaria (Reservar)") {
+            Spacer(Modifier.height(8.dp))
             Button(
                 onClick = onUploadClick,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = colors.primary),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Text(
-                    text = if (comprobanteUri == null) "Subir Comprobante" else "Cambiar Comprobante",
-                    color = colors.onPrimary,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Text(if (state.comprobanteUri == null) "Subir Comprobante" else "Cambiar Comprobante", color = colors.onPrimary, fontWeight = FontWeight.SemiBold)
             }
-            comprobanteUri?.let { uri ->
-                Spacer(modifier = Modifier.height(8.dp))
+            state.comprobanteUri?.let { uri ->
+                Spacer(Modifier.height(8.dp))
                 Image(
                     painter = rememberAsyncImagePainter(uri),
                     contentDescription = "Comprobante Seleccionado",
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                    modifier = Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(8.dp))
                 )
             }
         }
@@ -300,31 +178,16 @@ fun OrderSummarySection(subtotal: String, shipping: String, total: String, color
         PaymentDetailRow(label = "Subtotal", value = "RD$ $subtotal")
         PaymentDetailRow(label = "Costo de Envío", value = shipping)
         Divider(color = colors.outlineVariant, thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
-        PaymentDetailRow(
-            label = "Total a Pagar",
-            value = "RD$ $total",
-            fontWeight = FontWeight.Bold,
-            fontSize = 18.sp
-        )
+        PaymentDetailRow(label = "Total a Pagar", value = "RD$ $total", fontWeight = FontWeight.Bold, fontSize = 18.sp)
     }
 }
 
 @Composable
 fun CheckoutSection(title: String, colors: ColorScheme, content: @Composable ColumnScope.() -> Unit) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(colors.surface)
-            .padding(16.dp)
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(colors.surface).padding(16.dp)
     ) {
-        Text(
-            title,
-            fontSize = 16.sp,
-            color = colors.onSurface,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 12.dp)
-        )
+        Text(title, fontSize = 16.sp, color = colors.onSurface, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
         content()
     }
 }
@@ -332,29 +195,19 @@ fun CheckoutSection(title: String, colors: ColorScheme, content: @Composable Col
 @Composable
 fun PaymentMethodOption(label: String, isSelected: Boolean, onClick: () -> Unit, colors: ColorScheme) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        RadioButton(
-            selected = isSelected,
-            onClick = onClick,
-            colors = RadioButtonDefaults.colors(selectedColor = colors.primary, unselectedColor = colors.onSurfaceVariant)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
+        RadioButton(selected = isSelected, onClick = onClick, colors = RadioButtonDefaults.colors(selectedColor = colors.primary, unselectedColor = colors.onSurfaceVariant))
+        Spacer(Modifier.width(8.dp))
         Text(label, fontSize = 16.sp, color = colors.onSurface)
     }
 }
 
 @Composable
-fun CheckoutBottomBar(total: String, colors: ColorScheme, onPlaceOrder: () -> Unit, enabled: Boolean = true) {
+fun CheckoutBottomBar(total: String, colors: ColorScheme, enabled: Boolean = true, onPlaceOrder: () -> Unit) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(colors.surface)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .height(64.dp),
+        modifier = Modifier.fillMaxWidth().background(colors.surface).padding(horizontal = 16.dp, vertical = 8.dp).height(64.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -375,27 +228,14 @@ fun CheckoutBottomBar(total: String, colors: ColorScheme, onPlaceOrder: () -> Un
 }
 
 @Composable
-fun PaymentDetailRow(
-    label: String,
-    value: String,
-    fontWeight: FontWeight = FontWeight.Normal,
-    fontSize: androidx.compose.ui.unit.TextUnit = 16.sp,
-    isLink: Boolean = false
-) {
+fun PaymentDetailRow(label: String, value: String, fontWeight: FontWeight = FontWeight.Normal, fontSize: androidx.compose.ui.unit.TextUnit = 16.sp, isLink: Boolean = false) {
     val colors = MaterialTheme.colorScheme
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, fontSize = fontSize, color = colors.onSurface, fontWeight = fontWeight)
-        Text(
-            value,
-            fontSize = fontSize,
-            color = if (isLink) colors.primary else colors.onSurface,
-            fontWeight = fontWeight
-        )
+        Text(label, fontSize = fontSize, color = if (isLink) colors.primary else colors.onSurface, fontWeight = fontWeight)
+        Text(value, fontSize = fontSize, color = colors.onSurface, fontWeight = fontWeight)
     }
 }

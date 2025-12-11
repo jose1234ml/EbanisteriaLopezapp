@@ -1,40 +1,50 @@
 package com.ebanisterialopez.ebanisterialopez.presentation.home
 
-import androidx.compose.runtime.State
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ebanisterialopez.ebanisterialopez.data.remote.dto.toProductUiModel
 import com.ebanisterialopez.ebanisterialopez.domain.model.Product
 import com.ebanisterialopez.ebanisterialopez.domain.repository.ProductRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
+import com.ebanisterialopez.ebanisterialopez.presentation.model.HomeIntent
+import com.ebanisterialopez.ebanisterialopez.presentation.model.HomeUiState
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-sealed class HomeState {
-    object Loading : HomeState()
-    data class Success(val products: List<Product>) : HomeState()
-    data class Error(val message: String) : HomeState()
-}
+
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val repository: ProductRepository
 ) : ViewModel() {
-    private val _uiState = mutableStateOf<HomeState>(HomeState.Loading)
-    val uiState: State<HomeState> = _uiState
+
+    private val _state = MutableStateFlow(HomeUiState(isLoading = true))
+    val state: StateFlow<HomeUiState> = _state.asStateFlow()
+
     init {
-        fetchFeaturedProducts()
+        onIntent(HomeIntent.LoadFeaturedProducts)
     }
-    private fun fetchFeaturedProducts() {
-        viewModelScope.launch {
-            _uiState.value = HomeState.Loading
-            try {
-                val apiData = repository.getFeaturedProducts()
-                val mappedProducts = apiData.map { it.toProductUiModel() }
-                _uiState.value = HomeState.Success(mappedProducts)
-            } catch (e: Exception) {
-                _uiState.value = HomeState.Error("Fallo en la API: ${e.message}")
-            }
+
+    fun onIntent(intent: HomeIntent) {
+        when (intent) {
+            HomeIntent.LoadFeaturedProducts -> fetchFeaturedProducts()
         }
     }
 
+    private fun fetchFeaturedProducts() {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isLoading = true, errorMessage = null)
+            try {
+                val apiData = repository.getFeaturedProducts()
+                val products = apiData.map { it.toProductUiModel() }
+                _state.value = _state.value.copy(isLoading = false, products = products)
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    errorMessage = "Fallo en la API: ${e.message ?: "Desconocido"}"
+                )
+            }
+        }
+    }
 }

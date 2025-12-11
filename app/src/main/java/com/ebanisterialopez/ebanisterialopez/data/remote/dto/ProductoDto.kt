@@ -1,6 +1,8 @@
 package com.ebanisterialopez.ebanisterialopez.data.remote.dto
 
 import kotlinx.serialization.Serializable
+import com.ebanisterialopez.ebanisterialopez.domain.model.Product
+
 @Serializable
 data class ImagenProducto(
     val imagenId: Int? = null,
@@ -9,16 +11,19 @@ data class ImagenProducto(
     val orden: Int? = null,
     val producto: String? = null
 )
+
 @Serializable
 data class ProductCategory(
     val categoriaId: Int? = null,
     val nombre: String? = null
 )
+
 @Serializable
 data class ProductState(
     val estadoProductoId: Int? = null,
     val nombre: String? = null
 )
+
 @Serializable
 data class ProductDetail(
     val productoDetalleId: Int? = null,
@@ -28,6 +33,7 @@ data class ProductDetail(
     val dimensiones: String? = null,
     val productoId: Int? = null
 )
+
 @Serializable
 data class ProductApiData(
     val productoId: Int,
@@ -42,4 +48,18 @@ data class ProductApiData(
     val estadoProducto: ProductState? = null,
     val detalle: ProductDetail? = null,
     val imagenes: List<ImagenProducto>? = null,
-)
+) {
+    fun ProductApiData.toProductDomain(): Product {
+        return Product(
+            productoId = productoId,
+            name = nombre ?: "",
+            price = precio?.toString() ?: "0",
+            color = color ?: "",
+            material = material ?: "",
+            dimensiones = dimensiones ?: "",
+            imageUrl = imagenes?.firstOrNull()?.urlImagen ?: "",
+            description = detalle?.descripcion ?: "",
+            images = imagenes?.mapNotNull { it.urlImagen } ?: emptyList()
+        )
+    }
+}

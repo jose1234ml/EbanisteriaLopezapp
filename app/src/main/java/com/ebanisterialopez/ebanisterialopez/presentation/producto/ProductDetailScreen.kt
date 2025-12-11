@@ -1,4 +1,4 @@
-package com.ebanisterialopez.ebanisterialopez.presentation.producto
+package com.ebanisterialopez.ebanisterialopez.presentation.product_detail
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -9,8 +9,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -19,7 +19,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -27,8 +26,6 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.ebanisterialopez.ebanisterialopez.domain.model.Product
 import com.ebanisterialopez.ebanisterialopez.presentation.Venta.CarritoViewModel
-import com.ebanisterialopez.ebanisterialopez.presentation.product_detail.ProductDetailState
-import com.ebanisterialopez.ebanisterialopez.presentation.product_detail.ProductDetailViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,7 +34,7 @@ fun ProductDetailScreen(
     viewModel: ProductDetailViewModel = hiltViewModel(),
     carritoViewModel: CarritoViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val state by viewModel.state.collectAsState()
     val colors = MaterialTheme.colorScheme
 
     Scaffold(
@@ -54,7 +51,7 @@ fun ProductDetailScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* TODO: Toggle Favorite */ }) {
+                    IconButton(onClick = { /* TODO: Favorite */ }) {
                         Icon(Icons.Filled.FavoriteBorder, contentDescription = "Favorito", tint = colors.onPrimary)
                     }
                 },
@@ -62,38 +59,31 @@ fun ProductDetailScreen(
             )
         },
         bottomBar = {
-            if (uiState is ProductDetailState.Success) {
-                BottomDetailBar(
-                    product = (uiState as ProductDetailState.Success).product,
-                    navController = navController,
-                    carritoViewModel = carritoViewModel,
-                    colors = colors
-                )
+            state.product?.let { product ->
+                BottomDetailBar(product, navController, carritoViewModel, colors)
             }
         }
-    ) { paddingValues ->
+    ) { padding ->
         Box(
-            modifier = Modifier
+            Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .padding(padding)
                 .background(colors.background)
         ) {
-            when (val state = uiState) {
-                is ProductDetailState.Loading -> CircularProgressIndicator(
-                    color = colors.primary,
-                    modifier = Modifier.align(Alignment.Center)
-                )
-                is ProductDetailState.Success -> ProductDetailContent(state.product, colors)
-                is ProductDetailState.Error -> Text(
-                    "Error: ${state.message}",
+            when {
+                state.isLoading -> CircularProgressIndicator(Modifier.align(Alignment.Center), color = colors.primary)
+                state.errorMessage != null -> Text(
+                    text = state.errorMessage ?: "Error desconocido",
                     color = colors.error,
-                    fontWeight = FontWeight.Bold,
                     modifier = Modifier.align(Alignment.Center)
                 )
+                state.product != null -> ProductDetailContent(state.product!!, colors)
+                else -> Text("Producto no disponible", modifier = Modifier.align(Alignment.Center))
             }
         }
     }
 }
+
 @Composable
 fun ProductDetailContent(product: Product, colors: ColorScheme) {
     LazyColumn(
@@ -115,12 +105,12 @@ fun ProductDetailContent(product: Product, colors: ColorScheme) {
         item {
             Column(
                 modifier = Modifier
+                    .fillMaxWidth()
                     .padding(16.dp)
-                    .background(colors.surface)
             ) {
                 Text(
                     text = product.name,
-                    style = MaterialTheme.typography.headlineLarge,
+                    style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     color = colors.onSurface
                 )
@@ -129,27 +119,28 @@ fun ProductDetailContent(product: Product, colors: ColorScheme) {
                 Spacer(Modifier.height(12.dp))
                 Divider(color = colors.outlineVariant)
                 Spacer(Modifier.height(12.dp))
-                Text("Descripción", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = colors.onSurface)
+                Text("Descripción", fontWeight = FontWeight.SemiBold, color = colors.onSurface)
                 Spacer(Modifier.height(6.dp))
-                Text(product.description, style = MaterialTheme.typography.bodyMedium, color = colors.onSurface)
+                Text(product.description, color = colors.onSurface)
                 Spacer(Modifier.height(12.dp))
                 Divider(color = colors.outlineVariant)
                 Spacer(Modifier.height(12.dp))
-                Text("Características", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = colors.onSurface)
+                Text("Características", fontWeight = FontWeight.SemiBold, color = colors.onSurface)
                 Spacer(Modifier.height(8.dp))
-                if (!product.material.isNullOrBlank()) DetailRow("Material", product.material!!, colors)
-                if (!product.color.isNullOrBlank()) DetailRow("Color", product.color!!, colors)
-                if (!product.dimensiones.isNullOrBlank()) DetailRow("Dimensiones", product.dimensiones!!, colors)
+                if (!product.material.isNullOrBlank()) DetailRow("Material", product.material, colors)
+                if (!product.color.isNullOrBlank()) DetailRow("Color", product.color, colors)
+                if (!product.dimensiones.isNullOrBlank()) DetailRow("Dimensiones", product.dimensiones, colors)
                 if (product.material.isNullOrBlank() && product.color.isNullOrBlank() && product.dimensiones.isNullOrBlank())
                     Text("No hay características disponibles.", color = colors.onSurfaceVariant)
                 Spacer(Modifier.height(12.dp))
                 Divider(color = colors.outlineVariant)
                 Spacer(Modifier.height(12.dp))
+
                 val imgs = product.images
                 if (imgs.isNotEmpty()) {
-                    Text("Imágenes", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = colors.onSurface)
+                    Text("Imágenes", fontWeight = FontWeight.SemiBold, color = colors.onSurface)
                     Spacer(Modifier.height(8.dp))
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         items(imgs) { url ->
                             AsyncImage(
                                 model = url,
@@ -166,6 +157,7 @@ fun ProductDetailContent(product: Product, colors: ColorScheme) {
         }
     }
 }
+
 @Composable
 private fun DetailRow(label: String, value: String, colors: ColorScheme) {
     Row(
@@ -176,10 +168,11 @@ private fun DetailRow(label: String, value: String, colors: ColorScheme) {
         Spacer(Modifier.width(10.dp))
         Column {
             Text(label, fontWeight = FontWeight.SemiBold, color = colors.onSurface)
-            Text(value, style = MaterialTheme.typography.bodyMedium, color = colors.onSurface)
+            Text(value, color = colors.onSurface)
         }
     }
 }
+
 @Composable
 fun BottomDetailBar(
     product: Product,
@@ -188,7 +181,9 @@ fun BottomDetailBar(
     colors: ColorScheme
 ) {
     Surface(
-        Modifier.fillMaxWidth().height(80.dp),
+        Modifier
+            .fillMaxWidth()
+            .height(80.dp),
         color = colors.surface,
         shadowElevation = 10.dp
     ) {
@@ -200,7 +195,7 @@ fun BottomDetailBar(
             Column {
                 Text("Precio", fontSize = 14.sp, color = colors.onSurfaceVariant)
                 Text(
-                    product.price,
+                    product.price ?: "0",
                     fontSize = 24.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = colors.error
@@ -209,7 +204,12 @@ fun BottomDetailBar(
 
             Button(
                 onClick = {
-                    carritoViewModel.addItem(product, 1)
+                    carritoViewModel.onIntent(
+                        com.ebanisterialopez.ebanisterialopez.presentation.model.CarritoIntent.AddItem(
+                            product = product,
+                            quantity = 1
+                        )
+                    )
                     navController.navigate("cart")
                 },
                 Modifier.fillMaxHeight(),
@@ -223,27 +223,5 @@ fun BottomDetailBar(
                 }
             }
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun PreviewProductDetailScreen() {
-    val mock = Product(
-        productoId = 101,
-        name = "Mesa de Roble Clásica",
-        description = "Mesa robusta de roble, ideal para comedor. Capacidad 8 personas.",
-        price = "RD$ 12,000",
-        imageUrl = "https://placehold.co/800x400/0D47A1/FFFFFF?text=Mesa",
-        material = "Madera: Roble",
-        color = "Natural",
-        dimensiones = "200 x 100 x 75 cm",
-        images = listOf(
-            "https://placehold.co/600x400/cccccc/000000?text=Imagen1",
-            "https://placehold.co/600x400/aaaaaa/000000?text=Imagen2"
-        )
-    )
-    MaterialTheme {
-        ProductDetailContent(mock, MaterialTheme.colorScheme)
     }
 }

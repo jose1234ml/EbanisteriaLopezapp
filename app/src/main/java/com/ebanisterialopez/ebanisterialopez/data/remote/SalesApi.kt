@@ -1,5 +1,6 @@
-package com.ebanisterialopez.ebanisterialopez.data.remote.dto
+package com.ebanisterialopez.ebanisterialopez.data.remote
 
+import com.ebanisterialopez.ebanisterialopez.data.remote.dto.CrearVentaDto
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.POST

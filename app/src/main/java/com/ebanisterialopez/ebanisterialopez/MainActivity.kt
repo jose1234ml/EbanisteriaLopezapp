@@ -25,7 +25,7 @@ import com.ebanisterialopez.ebanisterialopez.presentation.home.OffersScreen
 import com.ebanisterialopez.ebanisterialopez.presentation.ajuste.SettingsScreen
 import com.ebanisterialopez.ebanisterialopez.presentation.login.LoginScreen
 import com.ebanisterialopez.ebanisterialopez.presentation.login.RegisterScreen
-import com.ebanisterialopez.ebanisterialopez.presentation.producto.ProductDetailScreen
+import com.ebanisterialopez.ebanisterialopez.presentation.product_detail.ProductDetailScreen
 import dagger.hilt.android.AndroidEntryPoint
 import com.example.compose.AppTheme
 

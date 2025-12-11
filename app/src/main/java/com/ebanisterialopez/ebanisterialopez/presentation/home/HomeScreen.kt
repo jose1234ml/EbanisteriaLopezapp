@@ -9,7 +9,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,6 +30,9 @@ import coil.compose.AsyncImage
 import com.ebanisterialopez.ebanisterialopez.domain.model.Product
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.compose.rememberNavController
 
 data class Category(val name: String, val icon: ImageVector)
 data class BottomNavItem(val title: String, val icon: ImageVector, val route: String)
@@ -42,6 +44,7 @@ private val categories = listOf(
     Category("Metal", Icons.Filled.Hardware),
     Category("Cocina", Icons.Filled.Countertops)
 )
+
 private val navItems = listOf(
     BottomNavItem("Home", Icons.Filled.Home, "home"),
     BottomNavItem("Contacto", Icons.Filled.Info, "contact"),
@@ -55,74 +58,69 @@ fun HomeScreen(
     navController: NavController,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState
+    val state by viewModel.state.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
     val currentRoute = "home"
-
     val colors = MaterialTheme.colorScheme
 
     Scaffold(
         topBar = { TopBarSection(navController, colors) },
         bottomBar = { BottomNavigationBar(navController, colors, currentRoute) }
     ) { paddingValues ->
-        when (val state = uiState) {
-            is HomeState.Loading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = colors.primary)
-                }
-            }
-            is HomeState.Success -> {
-                val products = state.products.reversed()
-                val filteredProducts = if (searchQuery.isBlank()) products
-                else products.filter { it.name.contains(searchQuery, ignoreCase = true) }
-
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
-                ) {
-                    item { SearchBarSection(value = searchQuery, onValueChange = { searchQuery = it }, colors = colors) }
-
-                    if (searchQuery.isNotBlank()) {
-                        item {
-                            ProductGridSection(
-                                products = filteredProducts,
-                                navController = navController,
-                                colors = colors,
-                                columns = 2
-                            )
-                        }
-                    } else {
-                        item { CategoriesSection(navController, colors) }
-                        item { FeaturedBannerSection(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), colors) }
-                        item { WeeklyOffersSection(navController, Modifier.padding(horizontal = 16.dp, vertical = 8.dp), colors) }
-                        item {
-                            Text(
-                                "Productos Destacados",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp,
-                                color = colors.primary,
-                                modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp)
-                            )
-                        }
-                        item { ProductGridSection(products, navController, colors, columns = 2) }
-                        item { Spacer(modifier = Modifier.height(32.dp)) }
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+            when {
+                state.isLoading -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = colors.primary)
                     }
                 }
-            }
-            is HomeState.Error -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Error: ${state.message}", color = colors.error, fontWeight = FontWeight.Bold)
+                state.errorMessage != null -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            "Error: ${state.errorMessage}",
+                            color = colors.error,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+                else -> {
+                    val products = state.products.reversed()
+                    val filteredProducts = if (searchQuery.isBlank()) products
+                    else products.filter { it.name.contains(searchQuery, ignoreCase = true) }
+
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues)
+                    ) {
+                        item { SearchBarSection(value = searchQuery, onValueChange = { searchQuery = it }, colors = colors) }
+
+                        if (searchQuery.isNotBlank()) {
+                            item {
+                                ProductGridSection(
+                                    products = filteredProducts,
+                                    navController = navController,
+                                    colors = colors,
+                                    columns = 2
+                                )
+                            }
+                        } else {
+                            item { CategoriesSection(navController, colors) }
+                            item { FeaturedBannerSection(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), colors) }
+                            item { WeeklyOffersSection(navController, Modifier.padding(horizontal = 16.dp, vertical = 8.dp), colors) }
+                            item {
+                                Text(
+                                    "Productos Destacados",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp,
+                                    color = colors.primary,
+                                    modifier = Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp)
+                                )
+                            }
+                            item { ProductGridSection(products, navController, colors, columns = 2) }
+                            item { Spacer(modifier = Modifier.height(32.dp)) }
+                        }
+                    }
                 }
             }
         }
@@ -209,9 +207,12 @@ fun CategoriesSection(navController: NavController, colors: ColorScheme) {
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        items(categories) { category -> CategoryItem(category, navController, colors) }
+        items(categories) { category ->  // <--- Solo la lista, sin "items ="
+            CategoryItem(category, navController, colors)
+        }
     }
 }
+
 
 @Composable
 fun CategoryItem(category: Category, navController: NavController, colors: ColorScheme) {
@@ -387,37 +388,6 @@ fun ProductCard(product: Product, navController: NavController, colors: ColorSch
 }
 
 @Composable
-fun ProductRow(product: Product, navController: NavController, colors: ColorScheme) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .clickable { navController.navigate("product_detail/${product.productoId}") },
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            AsyncImage(
-                model = product.imageUrl.takeIf { it.isNotEmpty() } ?: "https://placehold.co/200x200",
-                contentDescription = product.name,
-                modifier = Modifier
-                    .size(120.dp)
-                    .clip(RoundedCornerShape(12.dp)),
-                contentScale = ContentScale.Crop
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(product.name, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = colors.onBackground)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(product.description, fontSize = 14.sp, color = colors.onSurfaceVariant)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(product.price, fontWeight = FontWeight.ExtraBold, color = colors.error)
-            }
-        }
-    }
-}
-
-@Composable
 fun BottomNavigationBar(navController: NavController, colors: ColorScheme, currentRoute: String) {
     NavigationBar(containerColor = colors.surface, contentColor = colors.primary) {
         navItems.forEach { item ->
@@ -431,9 +401,7 @@ fun BottomNavigationBar(navController: NavController, colors: ColorScheme, curre
                 onClick = {
                     if (navController.currentDestination?.route != item.route) {
                         navController.navigate(item.route) {
-                            popUpTo(navController.graph.startDestinationId) {
-                                saveState = true
-                            }
+                            popUpTo(navController.graph.startDestinationId) { saveState = true }
                             launchSingleTop = true
                             restoreState = true
                         }
@@ -448,4 +416,10 @@ fun BottomNavigationBar(navController: NavController, colors: ColorScheme, curre
             )
         }
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun HomeScreenPreview() {
+    HomeScreen(navController = rememberNavController())
 }
