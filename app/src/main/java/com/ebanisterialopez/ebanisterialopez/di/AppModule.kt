@@ -22,7 +22,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object AppModule {
 
-    private const val BASE_URL = "https://ebanisterialopez-api-gkech8c3f5f2f0eq.centralus-01.azurewebsites.net/"
+    private const val BASE_URL = "https://ebanisterialopezapi-production.up.railway.app/"
 
     @Provides
     @Singleton
@@ -73,11 +73,13 @@ object AppModule {
     fun provideVentaRemoteDataSource(api: SalesApi): VentaRemoteDataSource {
         return VentaRemoteDataSource(api)
     }
+
     @Provides
     @Singleton
     fun provideSalesRepository(remoteDataSource: VentaRemoteDataSource): SalesRepository {
         return SalesRepositoryImpl(remoteDataSource)
     }
+
     @Provides
     @Singleton
     fun provideCrearVentaUseCase(
